@@ -1,0 +1,110 @@
+#!/bin/bash
+
+HOME_DIR="$HOME/.mariadb"
+NEW_VERSION="##VERSION##"
+NEW_DIR="$HOME_DIR/$NEW_VERSION"
+BASEDIR="##BASEDIR##"
+
+mkdir -p "$HOME_DIR"
+
+# ---------- Függvények ----------
+
+# Ellenőrzi, hogy a telepítendő verzió már létezik-e
+check_existing_version() {
+    if [ -d "$NEW_DIR" ] && [ "$(ls -A "$NEW_DIR")" ]; then
+        echo "❌ Hiba: $NEW_DIR már létezik és nem üres."
+        echo "Ellenőrizd a ~/.mariadb mappát, és ha szükséges, töröld a korábbi telepítést."
+        exit 1
+    fi
+}
+
+# Listázza a korábbi verziókat (csak nem üres mappák)
+list_previous_versions() {
+    VERSIONS=()
+    for dir in "$HOME_DIR"/*/; do
+        [[ -d "$dir" ]] || continue
+        [[ -n "$(ls -A "$dir")" ]] || continue  # Üres mappák kihagyása
+        base=$(basename "$dir")
+        [[ $base =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] && VERSIONS+=("$base")
+    done
+
+    IFS=$'\n' VERSIONS_SORTED=($(sort -V <<<"${VERSIONS[*]}"))
+    unset IFS
+}
+
+# Verzió kiválasztása a felhasználótól
+choose_version() {
+    if [ ${#VERSIONS_SORTED[@]} -eq 0 ]; then
+        echo "Nincs korábbi verzió, tiszta telepítés lesz."
+        CHOICE="clean"
+    else
+        echo "Elérhető korábbi verziók:"
+        i=1
+        for v in "${VERSIONS_SORTED[@]}"; do
+            echo "[$i] $v"
+            ((i++))
+        done
+        echo "[$i] Tiszta telepítés"
+        read -p "Válassz verziót vagy tiszta telepítést: " sel
+        if [[ $sel -ge 1 && $sel -lt $i ]]; then
+            CHOICE="${VERSIONS_SORTED[$((sel-1))]}"
+        else
+            CHOICE="clean"
+        fi
+    fi
+}
+
+# Korábbi verzió használata (symlink vagy copy)
+use_existing_version() {
+    read -p "Hogyan legyen elérhető az új verzió? [symlink/copy]: " LINK_OPTION
+    if [ "$LINK_OPTION" == "symlink" ]; then
+        ln -sfn "$HOME_DIR/$CHOICE" "$NEW_DIR"
+        echo "Symlink kész: $NEW_DIR -> $HOME_DIR/$CHOICE"
+        exit 0
+    elif [ "$LINK_OPTION" == "copy" ]; then
+        SOCK_FILE="$HOME_DIR/$CHOICE/mariadb-$CHOICE.sock"
+        if [ -S "$SOCK_FILE" ]; then
+            echo "Futó MariaDB socket: $SOCK_FILE"
+            echo "Állítsd le a futó példányt a folytatáshoz"
+            exit 1
+        fi
+        cp -r "$HOME_DIR/$CHOICE/"* "$NEW_DIR/"
+        echo "Copy kész: $NEW_DIR tartalmazza $CHOICE fájlait"
+        exit 0
+    fi
+
+    use_existing_version
+}
+
+perform_clean_install() {
+    DATADIR="$NEW_DIR"
+
+    # Ellenőrizzük, van-e régi mysql_install_db vagy mariadb-install-db
+    if [ -x "$BASEDIR/scripts/mysql_install_db" ]; then
+        echo "ℹ️ mysql_install_db használata..."
+        CMD="$BASEDIR/scripts/mysql_install_db --basedir=\"$BASEDIR\" --datadir=\"$DATADIR\""
+    elif [ -x "$BASEDIR/scripts/mariadb-install-db" ]; then
+        echo "ℹ️ mariadb-install-db használata..."
+        CMD="$BASEDIR/scripts/mariadb-install-db --basedir=\"$BASEDIR\" --datadir=\"$DATADIR\""
+    else
+        echo "ℹ️ Modern inicializálás mariadbd --initialize-insecure használatával..."
+        CMD="$BASEDIR/bin/mariadbd --initialize-insecure --basedir=\"$BASEDIR\" --datadir=\"$DATADIR\""
+    fi
+
+    echo "ℹ️ Futtatás: $CMD"
+    eval $CMD
+
+    echo "✅ Telepítés kész! $NEW_VERSION verzió a $DATADIR könyvtárban."
+}
+
+# ---------- Fő program ----------
+
+check_existing_version
+list_previous_versions
+choose_version
+
+if [ "$CHOICE" != "clean" ]; then
+    use_existing_version
+else
+    perform_clean_install
+fi

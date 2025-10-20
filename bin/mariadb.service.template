@@ -1,0 +1,23 @@
+[Unit]
+Description=MariaDB (mise managed, user)
+After=network.target
+
+[Service]
+Type=forking
+
+# Szolgáltatás indítása/leállítása
+ExecStart=/bin/bash -lc 'mariadb-server start'
+ExecStop=/bin/bash -lc 'mariadb-server stop'
+
+# Nincs újraindítás
+Restart=no
+TimeoutStartSec=30
+TimeoutStopSec=30
+
+# Naplózási beállítások
+StandardOutput=journal+console
+StandardError=file:%h/.mariadb/__ERROR_mariadb.service.log
+SyslogIdentifier=mariadb-service
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,93 @@
+#!/bin/bash
+
+PORT=3306
+USER=${USER:-root}
+VERSION="##VERSION##"
+HOME_DIR="$HOME/.mariadb"
+DATADIR="$HOME_DIR/$VERSION"
+SOCKET="$DATADIR/mariadb-$VERSION.sock"
+LOGFILE="/tmp/mariadb-service-$$.log"
+SERVICE_LOGFILE="$HOME_DIR/__ERROR_mariadb.service.log"
+
+# Service log tisztítása
+truncate -s 0 "$SERVICE_LOGFILE"
+
+# Ellenőrizzük, hogy van-e verbose flag
+VERBOSE=0
+for arg in "$@"; do
+  case "$arg" in
+    -V|--verbose)
+      VERBOSE=1
+      ;;
+  esac
+done
+
+log() {
+  if [ "$VERBOSE" -eq 1 ]; then
+    echo "$@"
+  fi
+}
+
+error_with_log() {
+  local error_msg="$1"
+  echo "ERROR: $error_msg" >&2
+  if [ -f "$LOGFILE" ] && [ -s "$LOGFILE" ]; then
+    echo "--- Parancs logja ---" >&2
+    cat "$LOGFILE" >&2
+    echo "--- Vége a lognak ---" >&2
+  fi
+  rm -f "$LOGFILE"
+  exit 1
+}
+
+cleanup_log() {
+  rm -f "$LOGFILE"
+  ([ ! -s "$SERVICE_LOGFILE" ] && rm -f "$SERVICE_LOGFILE")
+}
+
+case "$1" in
+  start)
+    if [ "$VERBOSE" -eq 1 ]; then
+      mariadbd --basedir="##BASEDIR##" --datadir="$DATADIR" --socket="$SOCKET" --port="$PORT" &
+      PID=$!
+    else
+      mariadbd --basedir="##BASEDIR##" --datadir="$DATADIR" --socket="$SOCKET" --port="$PORT" >"$LOGFILE" 2>&1 &
+      PID=$!
+    fi
+
+    # Várunk egy kicsit, hogy a folyamat elinduljon
+    sleep 1
+
+    # Ellenőrizzük, hogy fut-e még a folyamat
+    if ! kill -0 $PID 2>/dev/null; then
+      error_with_log "MariaDB indítása sikertelen"
+    fi
+
+    log "MariaDB $VERSION started"
+    cleanup_log
+    ;;
+
+  stop)
+    if [ "$VERBOSE" -eq 1 ]; then
+      mariadb-admin -u "$USER" --socket="$SOCKET" shutdown
+      EXIT_CODE=$?
+    else
+      mariadb-admin -u "$USER" --socket="$SOCKET" shutdown >"$LOGFILE" 2>&1
+      EXIT_CODE=$?
+    fi
+
+    sleep 1
+
+    if [ $EXIT_CODE -ne 0 ]; then
+      error_with_log "MariaDB leállítása sikertelen"
+    fi
+
+    log "MariaDB $VERSION stopped"
+    cleanup_log
+    ;;
+
+  *)
+    echo "Usage: $0 {start|stop} [-V|--verbose]"
+    exit 1
+    ;;
+esac
