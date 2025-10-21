@@ -46,17 +46,17 @@ function ConfigForWindows(path, version)
     os.execute("mkdir -p " .. installBinDir)
     local templateDir = RUNTIME.pluginDirPath .. "/templates/windows"
 
-    CopyAndReplaceTemplate(templateDir .. "/mariadb-install.template", installBinDir .. "/mariadb-install", {
+    CopyAndReplaceTemplate(templateDir .. "/mariadb-install.template", installBinDir .. "/mariadb-install.cmd", {
         ["##VERSION##"] = version,
         ["##BASEDIR##"] = path
     })
 
-    CopyAndReplaceTemplate(templateDir .. "/mariadb-server.template", installBinDir .. "/mariadb-server", {
+    CopyAndReplaceTemplate(templateDir .. "/mariadb-server.template", installBinDir .. "/mariadb-server.cmd", {
         ["##VERSION##"] = version,
         ["##BASEDIR##"] = path
     })
 
-    CopyAndReplaceTemplate(templateDir .. "/mariadb-client.template", installBinDir .. "/mariadb-client", {
+    CopyAndReplaceTemplate(templateDir .. "/mariadb-client.template", installBinDir .. "/mariadb-client.cmd", {
         ["##VERSION##"] = version
     })
 

@@ -1,0 +1,77 @@
+$HomeDir = "$env:USERPROFILE\.mariadb"
+$NewVersion = "##VERSION##"
+$NewDir = Join-Path $HomeDir $NewVersion
+$BaseDir = "##BASEDIR##"
+
+if (-not (Test-Path $HomeDir)) {
+    New-Item -ItemType Directory -Path $HomeDir | Out-Null
+}
+
+function CheckExistingVersion {
+    if (Test-Path $NewDir -PathType Container -and (Get-ChildItem $NewDir)) {
+        Write-Host "❌ Error: $NewDir already exists and is not empty."
+        exit 1
+    }
+}
+
+function ListPreviousVersions {
+    $global:Versions = Get-ChildItem $HomeDir -Directory | Where-Object {
+        $_.Name -match '^\d+\.\d+\.\d+$' -and (Get-ChildItem $_.FullName)
+    } | ForEach-Object { $_.Name }
+    $global:Versions = $global:Versions | Sort-Object {[version]$_}
+}
+
+function ChooseVersion {
+    if ($Versions.Count -eq 0) {
+        $global:Choice = "clean"
+        Write-Host "No previous version found; performing a clean installation."
+    } else {
+        Write-Host "Available previous versions:"
+        $i = 1
+        foreach ($v in $Versions) { Write-Host "[$i] $v"; $i++ }
+        Write-Host "[$i] Clean installation"
+        $sel = Read-Host "Choose a version or clean installation"
+        if ([int]$sel -ge 1 -and [int]$sel -lt $i) {
+            $global:Choice = $Versions[[int]$sel-1]
+        }
+        else {
+            $global:Choice = "clean"
+        }
+    }
+}
+
+function UseExistingVersion {
+    $linkOption = Read-Host "How should the new version be made available? [symlink/copy]"
+    if ($linkOption -eq "symlink") {
+        New-Item -ItemType SymbolicLink -Path $NewDir -Target (Join-Path $HomeDir $Choice) -Force
+        Write-Host "Symlink created: $NewDir -> $HomeDir\$Choice"
+        exit 0
+    } elseif ($linkOption -eq "copy") {
+        Copy-Item -Path (Join-Path $HomeDir $Choice)\* -Destination $NewDir -Recurse
+        Write-Host "Copy completed: $NewDir contains $Choice files"
+        exit 0
+    } else {
+        UseExistingVersion
+    }
+}
+
+function PerformCleanInstall {
+    $DataDir = $NewDir
+    $Mysqld = Join-Path $BaseDir "bin\mariadbd.exe"
+
+    Write-Host "ℹ️ Initializing MariaDB in $DataDir ..."
+    & $Mysqld --initialize-insecure --basedir=$BaseDir --datadir=$DataDir
+    Write-Host "✅ Installation complete! Version $NewVersion is in the $DataDir directory."
+}
+
+# ---------- Logic ----------
+
+CheckExistingVersion
+ListPreviousVersions
+ChooseVersion
+
+if ($Choice -ne "clean") {
+    UseExistingVersion
+} else {
+    PerformCleanInstall
+}

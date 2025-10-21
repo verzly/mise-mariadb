@@ -1,0 +1,23 @@
+param(
+    [string]$User = "",
+    [string]$Password = "",
+    [string]$Version = "##VERSION##",
+    [int]$Port = 3306
+)
+
+$HomeDir = "$env:USERPROFILE\.mariadb"
+$BaseDir = "$HomeDir\$Version"
+
+$Cmd = "mariadb.exe --protocol=tcp --host=127.0.0.1 --port=$Port"
+
+if ($User -ne "") {
+    $Cmd += " -u $User"
+}
+
+if ($Password -ne "") {
+    $Cmd += " -p$Password"
+} elseif ($Password -eq "" -and $User -ne "") {
+    $Cmd += " -p"
+}
+
+Invoke-Expression $Cmd
