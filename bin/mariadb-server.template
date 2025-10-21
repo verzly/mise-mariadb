@@ -30,9 +30,9 @@ error_with_log() {
   local error_msg="$1"
   echo "ERROR: $error_msg" >&2
   if [ -f "$LOGFILE" ] && [ -s "$LOGFILE" ]; then
-    echo "--- Parancs logja ---" >&2
+    echo "--- Command log ---" >&2
     cat "$LOGFILE" >&2
-    echo "--- Vége a lognak ---" >&2
+    echo "--- End of log ---" >&2
   fi
   rm -f "$LOGFILE"
   exit 1
@@ -56,7 +56,7 @@ case "$1" in
     sleep 1
 
     if ! kill -0 $PID 2>/dev/null; then
-      error_with_log "MariaDB indítása sikertelen"
+      error_with_log "Failed to start MariaDB"
     fi
 
     log "MariaDB $VERSION started"
@@ -75,7 +75,7 @@ case "$1" in
     sleep 1
 
     if [ $EXIT_CODE -ne 0 ]; then
-      error_with_log "MariaDB leállítása sikertelen"
+      error_with_log "Failed to stop MariaDB"
     fi
 
     log "MariaDB $VERSION stopped"
