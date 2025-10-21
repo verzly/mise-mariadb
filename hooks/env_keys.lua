@@ -11,7 +11,7 @@ function PLUGIN:EnvKeys(ctx)
     local bin = ""
 
     if RUNTIME.osType == 'windows' then
-        bin = "\\"
+        bin = "\\bin"
     else
         bin = "/bin"
     end
