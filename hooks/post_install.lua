@@ -1,12 +1,10 @@
 local util = require('util')
 require('constants')
 
-local templateBinDir = RUNTIME.pluginDirPath .. "/bin"
-
 local function CopyAndReplaceTemplate(srcPath, dstPath, replacements)
     local f = io.open(srcPath, "r")
     if not f then
-        error("Template fájl nem található: " .. srcPath)
+        error("Template file not found: " .. srcPath)
     end
     local content = f:read("*all")
     f:close()
@@ -32,40 +30,63 @@ function PLUGIN:PostInstall(ctx)
         handle:close()
         version = result:gsub("%s+", "")
         if version == "" then
-            error("Nem található MariaDB verzió, add meg a version-t constants.lua-ban vagy ctx-ben.")
+            error("No MariaDB version found, set version in constants.lua or ctx.")
         end
     end
 
+    if RUNTIME.osType == "windows" then
+        ConfigForWindows(path, version)
+    else
+        ConfigForLinux(path, version)
+    end
+end
+
+function ConfigForWindows(path, version)
     local installBinDir = path .. "/bin"
     os.execute("mkdir -p " .. installBinDir)
+    local templateDir = RUNTIME.pluginDirPath .. "/templates/windows"
 
-    CopyAndReplaceTemplate(templateBinDir .. "/mariadb-install.template", installBinDir .. "/mariadb-install", {
+    CopyAndReplaceTemplate(templateDir .. "/mariadb-install.template", installBinDir .. "/mariadb-install", {
         ["##VERSION##"] = version,
         ["##BASEDIR##"] = path
     })
 
-    CopyAndReplaceTemplate(templateBinDir .. "/mariadb-server.template", installBinDir .. "/mariadb-server", {
+    CopyAndReplaceTemplate(templateDir .. "/mariadb-server.template", installBinDir .. "/mariadb-server", {
         ["##VERSION##"] = version,
         ["##BASEDIR##"] = path
     })
 
-    CopyAndReplaceTemplate(templateBinDir .. "/mariadb-client.template", installBinDir .. "/mariadb-client", {
+    CopyAndReplaceTemplate(templateDir .. "/mariadb-client.template", installBinDir .. "/mariadb-client", {
         ["##VERSION##"] = version
     })
 
-    print("✅ MariaDB executables létrehozva a " .. installBinDir .. " mappában:")
-    print("  mariadb-install  -> interaktív telepítés, copy/symlink/tiszta telepítés")
-    print("  mariadb-server   -> start/stop MariaDB a kiválasztott verzióval")
-    print("    -V/--verbose?")
-    print("  mariadb-client   -> csatlakozás a kiválasztott verzióhoz, username/password megadható")
-    print("    -u/--user?=without-user -p/--password?=without-password --version?=MiseDefault --port?=3306")
+    print("✅ Windows MariaDB executables created in " .. installBinDir)
+end
+
+function ConfigForLinux(path, version)
+    local installBinDir = path .. "/bin"
+    os.execute("mkdir -p " .. installBinDir)
+    local templateDir = RUNTIME.pluginDirPath .. "/templates/linux"
+
+    CopyAndReplaceTemplate(templateDir .. "/mariadb-install.template", installBinDir .. "/mariadb-install", {
+        ["##VERSION##"] = version,
+        ["##BASEDIR##"] = path
+    })
+
+    CopyAndReplaceTemplate(templateDir .. "/mariadb-server.template", installBinDir .. "/mariadb-server", {
+        ["##VERSION##"] = version,
+        ["##BASEDIR##"] = path
+    })
+
+    CopyAndReplaceTemplate(templateDir .. "/mariadb-client.template", installBinDir .. "/mariadb-client", {
+        ["##VERSION##"] = version
+    })
+
+    print("✅ Linux MariaDB executables created in " .. installBinDir)
 
     local serviceDir = os.getenv("HOME") .. "/.config/systemd/user"
     os.execute("mkdir -p " .. serviceDir)
-    CopyAndReplaceTemplate(templateBinDir .. "/mariadb.service.template", serviceDir .. "/mariadb.service", {})
-    print("✅ MariaDB systemd service létrehozva felhasználói szinten: " .. serviceDir .. "/mariadb.service")
-    print("  systemctl --user status mariadb")
-    print("  systemctl --user start mariadb")
-    print("  systemctl --user restart mariadb")
-    print("  systemctl --user stop mariadb")
+    CopyAndReplaceTemplate(templateDir .. "/mariadb.service.template", serviceDir .. "/mariadb.service", {})
+
+    print("✅ MariaDB systemd service created at " .. serviceDir .. "/mariadb.service")
 end
