@@ -1,10 +1,8 @@
 local util = require('util')
 require('constants')
 
--- Template mappa (projektben)
 local templateBinDir = RUNTIME.pluginDirPath .. "/bin"
 
--- Segédfüggvény: template másolása + placeholder csere
 local function CopyAndReplaceTemplate(srcPath, dstPath, replacements)
     local f = io.open(srcPath, "r")
     if not f then
@@ -23,10 +21,9 @@ local function CopyAndReplaceTemplate(srcPath, dstPath, replacements)
     os.execute('chmod +x "' .. dstPath .. '"')
 end
 
---[[ PostInstall hook ]]--
 function PLUGIN:PostInstall(ctx)
     local sdkInfo = ctx.sdkInfo['mariadb']
-    local path = sdkInfo.path   -- Telepítés alapkönyvtára
+    local path = sdkInfo.path
     local version = sdkInfo.version
 
     if not version or version == "" then
@@ -39,11 +36,9 @@ function PLUGIN:PostInstall(ctx)
         end
     end
 
-    -- Létrehozzuk a telepített MariaDB bin mappát
     local installBinDir = path .. "/bin"
     os.execute("mkdir -p " .. installBinDir)
 
-    -- Executables létrehozása a template-ekből
     CopyAndReplaceTemplate(templateBinDir .. "/mariadb-install.template", installBinDir .. "/mariadb-install", {
         ["##VERSION##"] = version,
         ["##BASEDIR##"] = path

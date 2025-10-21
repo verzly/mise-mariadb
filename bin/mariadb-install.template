@@ -7,9 +7,6 @@ BASEDIR="##BASEDIR##"
 
 mkdir -p "$HOME_DIR"
 
-# ---------- Függvények ----------
-
-# Ellenőrzi, hogy a telepítendő verzió már létezik-e
 check_existing_version() {
     if [ -d "$NEW_DIR" ] && [ "$(ls -A "$NEW_DIR")" ]; then
         echo "❌ Hiba: $NEW_DIR már létezik és nem üres."
@@ -18,12 +15,11 @@ check_existing_version() {
     fi
 }
 
-# Listázza a korábbi verziókat (csak nem üres mappák)
 list_previous_versions() {
     VERSIONS=()
     for dir in "$HOME_DIR"/*/; do
         [[ -d "$dir" ]] || continue
-        [[ -n "$(ls -A "$dir")" ]] || continue  # Üres mappák kihagyása
+        [[ -n "$(ls -A "$dir")" ]] || continue  # exclude empty dirs
         base=$(basename "$dir")
         [[ $base =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] && VERSIONS+=("$base")
     done
@@ -32,7 +28,6 @@ list_previous_versions() {
     unset IFS
 }
 
-# Verzió kiválasztása a felhasználótól
 choose_version() {
     if [ ${#VERSIONS_SORTED[@]} -eq 0 ]; then
         echo "Nincs korábbi verzió, tiszta telepítés lesz."
@@ -54,7 +49,6 @@ choose_version() {
     fi
 }
 
-# Korábbi verzió használata (symlink vagy copy)
 use_existing_version() {
     read -p "Hogyan legyen elérhető az új verzió? [symlink/copy]: " LINK_OPTION
     if [ "$LINK_OPTION" == "symlink" ]; then
@@ -79,7 +73,6 @@ use_existing_version() {
 perform_clean_install() {
     DATADIR="$NEW_DIR"
 
-    # Ellenőrizzük, van-e régi mysql_install_db vagy mariadb-install-db
     if [ -x "$BASEDIR/scripts/mysql_install_db" ]; then
         echo "ℹ️ mysql_install_db használata..."
         CMD="$BASEDIR/scripts/mysql_install_db --basedir=\"$BASEDIR\" --datadir=\"$DATADIR\""
@@ -97,7 +90,7 @@ perform_clean_install() {
     echo "✅ Telepítés kész! $NEW_VERSION verzió a $DATADIR könyvtárban."
 }
 
-# ---------- Fő program ----------
+# ---------- Logic ----------
 
 check_existing_version
 list_previous_versions

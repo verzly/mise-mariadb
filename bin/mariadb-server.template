@@ -9,10 +9,8 @@ SOCKET="$DATADIR/mariadb-$VERSION.sock"
 LOGFILE="/tmp/mariadb-service-$$.log"
 SERVICE_LOGFILE="$HOME_DIR/__ERROR_mariadb.service.log"
 
-# Service log tisztítása
 truncate -s 0 "$SERVICE_LOGFILE"
 
-# Ellenőrizzük, hogy van-e verbose flag
 VERBOSE=0
 for arg in "$@"; do
   case "$arg" in
@@ -55,10 +53,8 @@ case "$1" in
       PID=$!
     fi
 
-    # Várunk egy kicsit, hogy a folyamat elinduljon
     sleep 1
 
-    # Ellenőrizzük, hogy fut-e még a folyamat
     if ! kill -0 $PID 2>/dev/null; then
       error_with_log "MariaDB indítása sikertelen"
     fi

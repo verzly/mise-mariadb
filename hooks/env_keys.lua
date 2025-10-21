@@ -16,8 +16,6 @@ function PLUGIN:EnvKeys(ctx)
         bin = "/bin"
     end
 
-    --util.ensure_dir(composerHome)
-
     return {
         {
             key = "PATH",

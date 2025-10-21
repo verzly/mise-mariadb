@@ -7,7 +7,6 @@ HOME_DIR="$HOME/.mariadb"
 SOCKET="$HOME_DIR/$VERSION/mariadb-$VERSION.sock"
 PORT=3306
 
-# Parancssori opciók feldolgozása
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -u|--user) USER="$2"; shift 2;;
@@ -16,7 +15,7 @@ while [[ $# -gt 0 ]]; do
                 PASSWORD="$2"
                 shift 2
             else
-                PASSWORD=""   # csak -p flag, jelszó prompt
+                PASSWORD=""
                 shift
             fi
             ;;
@@ -28,20 +27,16 @@ done
 
 SOCKET="$HOME_DIR/$VERSION/mariadb-$VERSION.sock"
 
-# Parancs összeállítása
 CMD=(mariadb -S "$SOCKET")
 
-# USER megadása
 if [[ -n "$USER" ]]; then
     CMD+=(-u "$USER")
 fi
 
-# PASSWORD megadása
 if [[ -n "$PASSWORD" ]]; then
     CMD+=(-p"$PASSWORD")
 elif [[ "$PASSWORD" == "" && -n "$USER" ]]; then
-    CMD+=(-p)  # ha -p flag volt, jelszó prompt
+    CMD+=(-p)
 fi
 
-# Futtatás
 "${CMD[@]}"

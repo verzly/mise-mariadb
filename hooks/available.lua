@@ -21,7 +21,8 @@ function PLUGIN:Available(ctx)
     for _, group in pairs(data.releases) do
         if group.children then
             for _, rel in ipairs(group.children) do
-                -- Kizárjuk a space-t tartalmazó verziószámokat az if által; pld.: "11.6.0 Vector"
+                -- only accept x.y.z
+                -- exclude versions what contains space; e.g.: "11.6.0 Vector"
                 if rel.release_number and not rel.release_number:find("%s") then
                     table.insert(result, {
                         version = rel.release_number,
