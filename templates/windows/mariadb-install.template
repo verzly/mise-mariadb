@@ -9,7 +9,7 @@ if (-not (Test-Path $HomeDir)) {
 
 function CheckExistingVersion {
     if (Test-Path $NewDir -PathType Container -and (Get-ChildItem $NewDir)) {
-        Write-Host "❌ Error: $NewDir already exists and is not empty."
+        Write-Host "Error: $NewDir already exists and is not empty."
         exit 1
     }
 }
@@ -59,9 +59,9 @@ function PerformCleanInstall {
     $DataDir = $NewDir
     $Mysqld = Join-Path $BaseDir "bin\mariadbd.exe"
 
-    Write-Host "ℹ️ Initializing MariaDB in $DataDir ..."
+    Write-Host "Initializing MariaDB in $DataDir ..."
     & $Mysqld --initialize-insecure --basedir=$BaseDir --datadir=$DataDir
-    Write-Host "✅ Installation complete! Version $NewVersion is in the $DataDir directory."
+    Write-Host "Installation complete! Version $NewVersion is in the $DataDir directory."
 }
 
 # ---------- Logic ----------
