@@ -46,17 +46,17 @@ function ConfigForWindows(path, version)
     os.execute("mkdir -p " .. installBinDir)
     local templateDir = RUNTIME.pluginDirPath .. "/templates/windows"
 
-    CopyAndReplaceTemplate(templateDir .. "/mariadb-install.template", installBinDir .. "/mariadb-install.cmd", {
+    CopyAndReplaceTemplate(templateDir .. "/mariadb-install.template", installBinDir .. "/mariadb-install.ps1", {
         ["##VERSION##"] = version,
         ["##BASEDIR##"] = path
     })
 
-    CopyAndReplaceTemplate(templateDir .. "/mariadb-server.template", installBinDir .. "/mariadb-server.cmd", {
+    CopyAndReplaceTemplate(templateDir .. "/mariadb-server.template", installBinDir .. "/mariadb-server.ps1", {
         ["##VERSION##"] = version,
         ["##BASEDIR##"] = path
     })
 
-    CopyAndReplaceTemplate(templateDir .. "/mariadb-client.template", installBinDir .. "/mariadb-client.cmd", {
+    CopyAndReplaceTemplate(templateDir .. "/mariadb-client.template", installBinDir .. "/mariadb-client.ps1", {
         ["##VERSION##"] = version
     })
 
@@ -64,7 +64,7 @@ function ConfigForWindows(path, version)
 
     local createServiceCmd = table.concat({
         'sc create "MariaDB (mise managed, user)"',
-        'binPath= "' .. installBinDir .. '\\mariadb-server.cmd start"',
+        'binPath= "' .. installBinDir .. '\\mariadb-server.ps1 start"',
         'DisplayName= "MariaDB (mise managed, user)"',
         'start= demand'
     }, " ")
