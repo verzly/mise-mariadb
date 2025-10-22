@@ -1,0 +1,20 @@
+[Unit]
+Description=MariaDB (mise managed, user)
+After=network.target
+
+[Service]
+Type=forking
+
+ExecStart=/bin/bash -lc 'mariadb-server start'
+ExecStop=/bin/bash -lc 'mariadb-server stop'
+
+Restart=no
+TimeoutStartSec=30
+TimeoutStopSec=30
+
+StandardOutput=journal+console
+StandardError=file:%h/.mariadb/__ERROR_mariadb.service.log
+SyslogIdentifier=mariadb-service
+
+[Install]
+WantedBy=default.target

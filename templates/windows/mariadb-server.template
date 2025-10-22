@@ -1,0 +1,83 @@
+param(
+    [ValidateSet("start","stop")]
+    [string]$Action,
+    [switch]$Verbose
+)
+
+$User = $env:USERNAME
+$Version = "##VERSION##"
+$HomeDir = "$env:USERPROFILE\.mariadb"
+$DataDir = Join-Path $HomeDir $Version
+$Port = 3306
+$LogFile = Join-Path $env:TEMP "mariadb-service-$($PID).log"
+$ServiceLogFile = Join-Path $HomeDir "__ERROR_mariadb.service.log"
+
+if (Test-Path $ServiceLogFile) { Clear-Content $ServiceLogFile }
+
+function Log {
+    param($msg)
+    if ($Verbose) { Write-Host $msg }
+}
+
+function ErrorWithLog {
+    param($msg)
+    Write-Host "ERROR: $msg" -ForegroundColor Red
+    if (Test-Path $LogFile -and (Get-Item $LogFile).Length -gt 0) {
+        Write-Host "--- Command log ---"
+        Get-Content $LogFile
+        Write-Host "--- End of log ---"
+    }
+    Remove-Item -Force $LogFile
+    exit 1
+}
+
+function CleanupLog {
+    Remove-Item -Force -ErrorAction SilentlyContinue $LogFile
+    if ((-not (Test-Path $ServiceLogFile)) -or ((Get-Item $ServiceLogFile).Length -eq 0)) {
+        Remove-Item -Force -ErrorAction SilentlyContinue $ServiceLogFile
+    }
+}
+
+function Start-MariaDB {
+    $Mysqld = Join-Path "##BASEDIR##\bin" "mariadbd.exe"
+    Log "Starting MariaDB $Version..."
+    
+    try {
+        if ($Verbose) {
+            Start-Process -FilePath $Mysqld -ArgumentList "--basedir=##BASEDIR## --datadir=$DataDir --port=$Port" -NoNewWindow
+        } else {
+            Start-Process -FilePath $Mysqld -ArgumentList "--basedir=##BASEDIR## --datadir=$DataDir --port=$Port" -RedirectStandardOutput $LogFile -RedirectStandardError $LogFile -NoNewWindow
+        }
+        Start-Sleep -Seconds 1
+    } catch {
+        ErrorWithLog "Failed to start MariaDB: $_"
+    }
+
+    Log "MariaDB $Version started"
+    CleanupLog
+}
+
+function Stop-MariaDB {
+    $Admin = Join-Path "##BASEDIR##\bin" "mariadb-admin.exe"
+    Log "Stopping MariaDB $Version..."
+    
+    try {
+        if ($Verbose) {
+            & $Admin -u $User shutdown
+        } else {
+            & $Admin -u $User shutdown *> $LogFile
+        }
+        Start-Sleep -Seconds 1
+    } catch {
+        ErrorWithLog "Failed to stop MariaDB: $_"
+    }
+
+    Log "MariaDB $Version stopped"
+    CleanupLog
+}
+
+switch ($Action) {
+    "start" { Start-MariaDB }
+    "stop"  { Stop-MariaDB }
+    default { Write-Host "Usage: mariadb-server.ps1 start|stop [-Verbose]"; exit 1 }
+}
