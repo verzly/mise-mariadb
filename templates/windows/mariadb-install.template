@@ -8,8 +8,8 @@ if (-not (Test-Path $HomeDir)) {
 }
 
 function CheckExistingVersion {
-    if ((Test-Path $NewDir -PathType Container) -and (Get-ChildItem $NewDir)) {
-        Write-Host "Error: $NewDir already exists and is not empty."
+    if ((Test-Path $NewDir -PathType Container) -and ((Get-ChildItem $NewDir) -ne $null)) {
+        Write-Host "[ERROR] $NewDir already exists and is not empty."
         exit 1
     }
 }
@@ -33,8 +33,7 @@ function ChooseVersion {
         $sel = Read-Host "Choose a version or clean installation"
         if ([int]$sel -ge 1 -and [int]$sel -lt $i) {
             $global:Choice = $Versions[[int]$sel-1]
-        }
-        else {
+        } else {
             $global:Choice = "clean"
         }
     }
@@ -57,11 +56,26 @@ function UseExistingVersion {
 
 function PerformCleanInstall {
     $DataDir = $NewDir
-    $Mysqld = Join-Path $BaseDir "bin\mariadbd.exe"
+    if (-not (Test-Path $DataDir)) {
+        New-Item -ItemType Directory -Path $DataDir | Out-Null
+    }
 
-    Write-Host "Initializing MariaDB in $DataDir ..."
-    & $Mysqld --initialize-insecure --basedir=$BaseDir --datadir=$DataDir
-    Write-Host "Installation complete! Version $NewVersion is in the $DataDir directory."
+    $MariaDBBin = Join-Path $BaseDir "bin"
+
+    if (Test-Path (Join-Path $MariaDBBin "mysql_install_db.exe")) {
+        $CMD = "& `"$MariaDBBin\mysql_install_db.exe`" --datadir=`"$DataDir`""
+        Write-Host "[INFO] Using mysql_install_db..."
+    } elseif (Test-Path (Join-Path $MariaDBBin "mariadb-install-db.exe")) {
+        $CMD = "& `"$MariaDBBin\mariadb-install-db.exe`" --datadir=`"$DataDir`""
+        Write-Host "[INFO] Using mariadb-install-db..."
+    } else {
+        $CMD = "& `"$MariaDBBin\mariadbd.exe`" --initialize-insecure --datadir=`"$DataDir`""
+        Write-Host "[INFO] Using mariadbd --initialize-insecure..."
+    }
+
+    Write-Host "[INFO] Executing: $CMD"
+    Invoke-Expression $CMD
+    Write-Host "[OK] Installation complete! Version $NewVersion is in $DataDir"
 }
 
 # ---------- Logic ----------
