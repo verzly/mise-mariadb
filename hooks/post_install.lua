@@ -50,14 +50,23 @@ function ConfigForWindows(path, version)
         ["##VERSION##"] = version,
         ["##BASEDIR##"] = path
     })
+    CopyAndReplaceTemplate(templateDir .. "/runabble-ps1.template", installBinDir .. "/mariadb-install.cmd", {
+        ["##FILE##"] = installBinDir .. "/mariadb-install.ps1"
+    })
 
     CopyAndReplaceTemplate(templateDir .. "/mariadb-server.template", installBinDir .. "/mariadb-server.ps1", {
         ["##VERSION##"] = version,
         ["##BASEDIR##"] = path
     })
+    CopyAndReplaceTemplate(templateDir .. "/runabble-ps1.template", installBinDir .. "/mariadb-server.cmd", {
+        ["##FILE##"] = installBinDir .. "/mariadb-server.ps1"
+    })
 
     CopyAndReplaceTemplate(templateDir .. "/mariadb-client.template", installBinDir .. "/mariadb-client.ps1", {
         ["##VERSION##"] = version
+    })
+    CopyAndReplaceTemplate(templateDir .. "/runabble-ps1.template", installBinDir .. "/mariadb-client.cmd", {
+        ["##FILE##"] = installBinDir .. "/mariadb-client.ps1"
     })
 
     print("✅ Windows MariaDB executables created in " .. installBinDir)
