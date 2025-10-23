@@ -32,6 +32,7 @@ error_with_log() {
   if [ -f "$LOGFILE" ] && [ -s "$LOGFILE" ]; then
     echo "--- Command log ---" >&2
     cat "$LOGFILE" >&2
+    cat "$LOGFILE" >> "$SERVICE_LOGFILE"
     echo "--- End of log ---" >&2
   fi
   rm -f "$LOGFILE"
