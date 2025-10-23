@@ -72,8 +72,8 @@ function ConfigForWindows(path, version)
     print("✅ Windows MariaDB executables created in " .. installBinDir)
 
     local createServiceCmd = table.concat({
-        'sc create "MariaDB (mise managed, user)"',
         'binPath= "' .. installBinDir .. '\\mariadb-server.ps1 start"',
+        'sc create "MariaDB"',
         'DisplayName= "MariaDB (mise managed, user)"',
         'start= demand'
     }, " ")
@@ -83,7 +83,7 @@ function ConfigForWindows(path, version)
         error("Failed to create MariaDB service.\nOutput:\n" .. out)
     end
 
-    print("✅ MariaDB user service created with name 'MariaDB (mise managed, user)'")
+    print("✅ MariaDB user service created with name 'MariaDB'")
 end
 
 function ConfigForLinux(path, version)
