@@ -1,83 +1,137 @@
 param(
-    [ValidateSet("start","stop")]
+    [Parameter(Position=0)]
+    [ValidateSet('start', 'stop')]
     [string]$Action,
-    [switch]$Verbose
+    
+    [Alias('V')]
+    [switch]$VerboseOutput,
+
+    [string]$Version = "##VERSION##",
+
+    [int]$Port = 3306
 )
 
-$User = $env:USERNAME
-$Version = "##VERSION##"
-$HomeDir = "$env:USERPROFILE\.mariadb"
-$DataDir = Join-Path $HomeDir $Version
-$Port = 3306
-$LogFile = Join-Path $env:TEMP "mariadb-service-$($PID).log"
-$ServiceLogFile = Join-Path $HomeDir "__ERROR_mariadb.service.log"
+$USER = if ($env:USERNAME) { $env:USERNAME } else { "root" }
+$VERSION = "##VERSION##"
+$HOME_DIR = Join-Path $env:USERPROFILE ".mariadb"
+$DATADIR = Join-Path $HOME_DIR $VERSION
+$LOGFILE = Join-Path $HOME_DIR "mariadb-service-$VERSION-$PID.log"
+$LOGFILE_ERR = Join-Path $HOME_DIR "mariadb-service-$VERSION-$PID-err.log"
+$SERVICE_LOGFILE = Join-Path $HOME_DIR "__ERROR_mariadb.service.log"
 
-if (Test-Path $ServiceLogFile) { Clear-Content $ServiceLogFile }
-
-function Log {
-    param($msg)
-    if ($Verbose) { Write-Host $msg }
+if (-not (Test-Path $HOME_DIR)) {
+    New-Item -ItemType Directory -Path $HOME_DIR -Force | Out-Null
 }
 
-function ErrorWithLog {
-    param($msg)
-    Write-Host "ERROR: $msg" -ForegroundColor Red
-    if (Test-Path $LogFile -and (Get-Item $LogFile).Length -gt 0) {
-        Write-Host "--- Command log ---"
-        Get-Content $LogFile
-        Write-Host "--- End of log ---"
+if (Test-Path $SERVICE_LOGFILE) {
+    Clear-Content $SERVICE_LOGFILE
+} else {
+    New-Item -ItemType File -Path $SERVICE_LOGFILE -Force | Out-Null
+    Clear-Content $SERVICE_LOGFILE
+}
+
+function Write-Log {
+    param([string]$Message)
+    if ($VerboseOutput) {
+        Write-Host $Message
     }
-    Remove-Item -Force $LogFile
+}
+
+function Write-ErrorWithLog {
+    param([string]$ErrorMessage)
+    
+    Write-Host "ERROR: $ErrorMessage" -ForegroundColor Red
+    
+    Start-Sleep -Milliseconds 500
+    
+    $logs = @($LOGFILE, $LOGFILE_ERR)
+
+    Write-Host "--- Command log ---" -ForegroundColor Red
+    foreach ($log in $logs) {
+        if ((Test-Path $log) -and ((Get-Item $log).Length -gt 0)) {
+            # Kiírjuk a konzolra piros színnel
+            Get-Content $log | ForEach-Object { 
+                Write-Host $_ -ForegroundColor Red 
+            }
+
+            # Beírjuk a SERVICE_LOGFILE-ba
+            Get-Content $log | ForEach-Object { 
+                Add-Content -Path $SERVICE_LOGFILE -Value $_ 
+            }
+        }
+    }
+    Write-Host "--- End of log ---" -ForegroundColor Red
+
+    foreach ($log in $logs) {
+        if (Test-Path $log) { Remove-Item $log -Force -ErrorAction SilentlyContinue }
+    }
+    
     exit 1
 }
 
-function CleanupLog {
-    Remove-Item -Force -ErrorAction SilentlyContinue $LogFile
-    if ((-not (Test-Path $ServiceLogFile)) -or ((Get-Item $ServiceLogFile).Length -eq 0)) {
-        Remove-Item -Force -ErrorAction SilentlyContinue $ServiceLogFile
+function Clear-LogFiles {
+    # Remove temp log files
+    if (Test-Path $LOGFILE) {
+        Remove-Item $LOGFILE -Force -ErrorAction SilentlyContinue
+    }
+    if (Test-Path $LOGFILE_ERR) {
+        Remove-Item $LOGFILE_ERR -Force -ErrorAction SilentlyContinue
+    }
+    
+    if ((Test-Path $SERVICE_LOGFILE) -and ((Get-Item $SERVICE_LOGFILE).Length -eq 0)) {
+        Remove-Item $SERVICE_LOGFILE -Force -ErrorAction SilentlyContinue
     }
 }
 
-function Start-MariaDB {
-    $Mysqld = Join-Path "##BASEDIR##\bin" "mariadbd.exe"
-    Log "Starting MariaDB $Version..."
-    
-    try {
-        if ($Verbose) {
-            Start-Process -FilePath $Mysqld -ArgumentList "--basedir=##BASEDIR## --datadir=$DataDir --port=$Port" -NoNewWindow
-        } else {
-            Start-Process -FilePath $Mysqld -ArgumentList "--basedir=##BASEDIR## --datadir=$DataDir --port=$Port" -RedirectStandardOutput $LogFile -RedirectStandardError $LogFile -NoNewWindow
-        }
-        Start-Sleep -Seconds 1
-    } catch {
-        ErrorWithLog "Failed to start MariaDB: $_"
-    }
-
-    Log "MariaDB $Version started"
-    CleanupLog
-}
-
-function Stop-MariaDB {
-    $Admin = Join-Path "##BASEDIR##\bin" "mariadb-admin.exe"
-    Log "Stopping MariaDB $Version..."
-    
-    try {
-        if ($Verbose) {
-            & $Admin -u $User shutdown
-        } else {
-            & $Admin -u $User shutdown *> $LogFile
-        }
-        Start-Sleep -Seconds 1
-    } catch {
-        ErrorWithLog "Failed to stop MariaDB: $_"
-    }
-
-    Log "MariaDB $Version stopped"
-    CleanupLog
+if (-not $Action) {
+    Write-Host "Usage: script.ps1 {start|stop} [-VerboseOutput|-V] [-Port|-p <port>]"
+    exit 1
 }
 
 switch ($Action) {
-    "start" { Start-MariaDB }
-    "stop"  { Stop-MariaDB }
-    default { Write-Host "Usage: mariadb-server.ps1 start|stop [-Verbose]"; exit 1 }
+    'start' {
+        if ($VerboseOutput) {
+            $process = Start-Process -FilePath "mariadbd" `
+                -ArgumentList "--datadir=`"$DATADIR`"", "--port=$Port", "--log-error=`"$LOGFILE`"" `
+                -PassThru -NoNewWindow
+        } else {
+            $process = Start-Process -FilePath "mariadbd" `
+                -ArgumentList "--datadir=`"$DATADIR`"", "--port=$Port", "--log-error=`"$LOGFILE`"" `
+                -PassThru -NoNewWindow `
+                -RedirectStandardOutput $LOGFILE `
+                -RedirectStandardError $LOGFILE_ERR
+        }
+        
+        Start-Sleep -Seconds 2
+        
+        if ($process.HasExited) {
+            Write-ErrorWithLog "Failed to start MariaDB"
+        }
+        
+        Write-Log "MariaDB $VERSION started"
+        Clear-LogFiles
+    }
+    
+    'stop' {
+        if ($VerboseOutput) {
+            $process = Start-Process -FilePath "mariadb-admin" `
+                -ArgumentList "-u", $USER, "--port=$Port", "shutdown" `
+                -Wait -PassThru -NoNewWindow
+        } else {
+            $process = Start-Process -FilePath "mariadb-admin" `
+                -ArgumentList "-u", $USER, "--port=$Port", "shutdown" `
+                -Wait -PassThru -NoNewWindow `
+                -RedirectStandardOutput $LOGFILE `
+                -RedirectStandardError $LOGFILE_ERR
+        }
+        
+        Start-Sleep -Seconds 1
+        
+        if ($process.ExitCode -ne 0) {
+            Write-ErrorWithLog "Failed to stop MariaDB"
+        }
+        
+        Write-Log "MariaDB $VERSION stopped"
+        Clear-LogFiles
+    }
 }
