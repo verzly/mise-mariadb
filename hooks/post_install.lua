@@ -72,8 +72,8 @@ function ConfigForWindows(path, version)
     print("✅ Windows MariaDB executables created in " .. installBinDir)
 
     local createServiceCmd = table.concat({
-        'binPath= "' .. installBinDir .. '\\mariadb-server.ps1 start"',
         'sc create "MariaDB"',
+        'binPath= "' .. installBinDir .. '\\mariadb-server.cmd start"',
         'DisplayName= "MariaDB (mise managed, user)"',
         'start= demand'
     }, " ")
