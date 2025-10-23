@@ -1,23 +1,29 @@
 param(
-    [string]$User = "",
-    [string]$Password = "",
+    [Alias("u")]
+    [string]$User = "root",
+
+    [Alias("p")]
+    [string]$Password = $null,
+
     [string]$Version = "##VERSION##",
+
     [int]$Port = 3306
 )
 
-$HomeDir = "$env:USERPROFILE\.mariadb"
-$BaseDir = "$HomeDir\$Version"
-
-$Cmd = "mariadb.exe --protocol=tcp --host=127.0.0.1 --port=$Port"
+$CMD = @("mariadb.exe", "--port=$Port")
 
 if ($User -ne "") {
-    $Cmd += " -u $User"
+    $CMD += "-u"
+    $CMD += $User
 }
 
-if ($Password -ne "") {
-    $Cmd += " -p$Password"
-} elseif ($Password -eq "" -and $User -ne "") {
-    $Cmd += " -p"
+if ($PSBoundParameters.ContainsKey('Password')) {
+    if ($Password -eq "") {
+        $CMD += "-p"
+    } else {
+        $CMD += "-p$Password"
+    }
 }
 
-Invoke-Expression $Cmd
+Write-Host "Executing: $($CMD -join ' ')"
+& $CMD[0] $CMD[1..($CMD.Count - 1)]
