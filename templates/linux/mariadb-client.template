@@ -19,8 +19,8 @@ while [[ $# -gt 0 ]]; do
                 shift
             fi
             ;;
-        --version=*) VERSION="${1#*=}"; shift;;
-        --port=*) PORT="${1#*=}"; shift;;
+        -v|--version=*) VERSION="${1#*=}"; shift;;
+        -P|--port=*) PORT="${1#*=}"; shift;;
         *) shift;;
     esac
 done
